@@ -2,15 +2,16 @@
 
 namespace App;
 
-use App\Traits\HasJWT;
+// use App\Traits\HasJWT;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
+use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable implements JWTSubject
+class User extends Authenticatable
 {
-    use Notifiable, HasJWT;
+    use Notifiable, HasApiTokens;
 
     protected $primaryKey = 'userid';
 

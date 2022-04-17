@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\ImageQr;
 use App\Traits\GenerateUUID;
+use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -18,6 +21,12 @@ class ImageQrController extends Controller
      * )
      */
     use GenerateUUID;
+
+    function validImage($file)
+    {
+        $size = getimagesize($file);
+        return (strtolower(substr($size['mime'], 0, 5)) == 'image' ? true : false);
+    }
 
     /**
      * @OA\Post(
@@ -75,33 +84,60 @@ class ImageQrController extends Controller
      *      )
      *     )
      */
-    public function upload(Request $request)
+    public function store(Request $request)
     {
         $fields = Validator::make($request->all(), [
-            'error_connection' => ['nullable', Rule::in(['L', 'M', 'Q', 'H'])],
-            'quiet_zone' => ['nullable', Rule::in([0, 1, 2, 3, 4])],
-            'version' => ['nullable', Rule::in([0, 1, 2, 3, 4, 5])],
-            'rotate' => ['nullable', Rule::in([0, 90, 180, 270])],
-            'eye_shape' => ['nullable', Rule::in(['rounded', 'sqaure'])],
+            'image' => 'required|array',
+            'attributes' => 'nullable|array',
+            'attributes.error_connection' => ['nullable', Rule::in(['L', 'M', 'Q', 'H'])],
+            'attributes.quiet_zone' => ['nullable', Rule::in([0, 1, 2, 3, 4])],
+            'attributes.version' => ['nullable', Rule::in([0, 1, 2, 3, 4, 5])],
+            'attributes.rotate' => ['nullable', Rule::in([0, 90, 180, 270])],
+            'attributes.eye_shape' => ['nullable', Rule::in(['rounded', 'sqaure'])],
         ]);
 
         if ($fields->fails()) return \response()->json(['errors' => $fields->errors()->messages()], 422);
 
-        // $qrCodeAttributes=[
-        //     'error_connection'=>$request->has('error_connection')
-        // ]
-
         $image = new ImageQr;
         $image->imageid = $this->v4();
         $image->userid = \auth()->user()->userid;
-        $image->save();
 
-        Storage::put('json/ImageQRRequests/' . $image->imageid . '.json', \json_encode($request->all()));
+        if (array_key_exists('method', $request->image)) {
+            if ($request->image['method'] === 'url') {
 
-        return \response()->json([
-            'id' => $image->imageid,
-            'upload_url' => 'http://localhost:8000/api/v1/imageqr/' . $image->imageid
-        ], 201);
+                $url = $request->image['url'];
+
+                if ($this->validImage($url)) {
+
+                    $headers = \get_headers($url);
+                    $contentType = $headers[\count($headers) - 1];
+                    $imageType = \substr($contentType, 14);
+
+
+                    $words = \explode('/', $imageType);
+                    $ext = $words[1];
+
+                    $img = $image->imageid . '.' . $ext;
+                    // Function to write image into file
+                    file_put_contents('images/' . $img, file_get_contents($url));
+                    $image->contenttype = $imageType;
+                    $image->submitted = \now();
+                    $image->ttl = \now();
+                    $image->status = 'OK';
+                    $image->save();
+
+                    Storage::put('json/ImageQRRequests/' . $image->imageid . '.json', \json_encode($request->attributes));
+                    return \response()->json(['success' => "image is uploaded to the system. Here is the id {$image->imageid}"]);
+                }
+            } else {
+                $image->save();
+                Storage::put('json/ImageQRRequests/' . $image->imageid . '.json', \json_encode($request->attributes));
+                return \response()->json([
+                    'id' => $image->imageid,
+                    'upload_url' =>  "https://" . $_SERVER['HTTP_HOST'] . "" . $_SERVER['REQUEST_URI'] . "/" . $image->imageid
+                ], 201);
+            }
+        }
     }
 
 
@@ -144,37 +180,91 @@ class ImageQrController extends Controller
      */
     public function update($uuid, Request $request)
     {
-        $fields = Validator::make($request->all(), [
-            'image' => 'required|mimes:jpeg,png'
-        ]);
+        // $fields = Validator::make($request->all(), [
+        //     'photo' => 'required|mimes:jpeg,bmp'
+        // ]);
+        // if ($fields->fails()) return \response()->json(['errors' => $fields->errors()->messages()], 422);
 
-        if ($fields->fails()) return \response()->json(['errors' => $fields->errors()->messages()], 422);
+        // \file_get_contents()
 
-        $image = ImageQr::where('imageid', $uuid)->where('userid', \auth()->user()->userid)->first();
+        // return $request->header('content-type');
 
-        if ($image) {
-            if ($request->hasFile('image')) {
-                $fileNameWithExt = $request->file('image')->getClientOriginalName();
-                $fileName = \pathinfo($fileNameWithExt, \PATHINFO_FILENAME);
-                $ext = $request->file('image')->getClientOriginalExtension();
-                $path = $request->file('image')->storeAs('images/', $uuid . '.' . $ext);
+        // $objInputStream = fopen("php://input", "rb");
+        // $objSaveStream = fopen($uuid . "." . 'png', "wb");
+        // // Storage::put('app/public/new', $objSaveStream);
+        // stream_copy_to_stream($objInputStream, $objSaveStream);
 
-                $image->contenttype = 'image/' . $ext;
+        // echo "$uuid Received\n";
+
+
+        // if ($image) {
+        //     if ($request->hasFile('image')) {
+        //         $fileNameWithExt = $request->file('image')->getClientOriginalName();
+        //         $fileName = \pathinfo($fileNameWithExt, \PATHINFO_FILENAME);
+        //         $ext = $request->file('image')->getClientOriginalExtension();
+        //         $path = $request->file('image')->storeAs('images/', $uuid . '.' . $ext);
+
+        //         $image->contenttype = 'image/' . $ext;
+        //         $image->submitted = \now();
+        //         $image->ttl = \now();
+        //         $image->status = 'OK';
+        //         $image->save();
+
+        //         return \response()->json([
+        //             'id' => $uuid,
+        //             'size' => $request->file('image')->getSize(),
+        //         ], 201);
+        //     }
+        // }
+
+
+
+        $image = ImageQr::findOrFail($uuid);
+
+
+        // strip off front slash
+        // $uniqueID = substr($_SERVER['PATH_INFO'], 1);
+        // $uniqueID =  json_decode(file_get_contents('php://input'),  true);
+
+        // uniqueID required and this must be a PUT request
+        if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+            // Cakephp $this->request->contentType() ??
+            $mimeType = $request->header('content-type');
+            $fileExten = "";
+            if ($mimeType == "image/jpeg" || $mimeType == "image/jpg") {
+                $fileExten = "jpg";
+            } elseif ($mimeType == "image/png") {
+                $fileExten = "png";
+            } else {
+                throw new Exception("Error Processing Request", 1);
+            }
+
+            if ($fileExten) {
+                $objInputStream = fopen("php://input", "rb");
+                $objSaveStream = fopen('images/' . $uuid . "." . $fileExten, "wb");
+                stream_copy_to_stream($objInputStream, $objSaveStream);
+
+
+                $image->contenttype = $mimeType;
                 $image->submitted = \now();
                 $image->ttl = \now();
                 $image->status = 'OK';
                 $image->save();
 
-                return \response()->json([
-                    'id' => $uuid,
-                    'size' => $request->file('image')->getSize(),
-                ], 201);
-            }
-        }
 
-        return \response()->json([
-            'error' => 'Something went wrong'
-        ], 401);
+                return \response()->json([
+                    'success' => "$uuid Received",
+                ], 201);
+            } else {
+                return \response()->json([
+                    'error' => "something went wrong",
+                ], 400);
+            }
+        } else {
+            return \response()->json([
+                'error' => "Not a PUT request",
+            ], 400);
+        }
     }
 
 
@@ -208,8 +298,17 @@ class ImageQrController extends Controller
         if ($image) {
             $words = \explode('/', $image->contenttype);
             $ext = $words[1];
-            $content = Storage::get('images/' . $image->imageid . '.' . $ext);
-            return response($content)->header('Content-Type', $image->contenttype);
+            // $content = Storage::disk('public')->get($image->imageid . '.' . $ext);
+            // return response($content)->header('content-type', $image->contenttype);
+            $file = public_path('images\\') . $image->imageid . "." . $ext;
+            $headers = array(
+                "Content-Type: $image->contenttype",
+            );
+
+            $image->processed = \now();
+            $image->save();
+
+            return Response::download($file, "$image->imageid . '.' . $ext", $headers);
         }
         return \response()->json([
             'error' => 'Something went wrong'

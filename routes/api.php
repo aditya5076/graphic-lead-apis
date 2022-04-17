@@ -18,16 +18,14 @@ use Illuminate\Support\Facades\Route;
 //     return $request->user();
 // });
 
-Route::group(['prefix' => 'v1'], function () {
 
-    Route::post('register', 'AuthController@register');
-    Route::post('login', 'AuthController@login');
+Route::post('register', 'AuthController@register');
+Route::post('login', 'AuthController@login');
 
-    Route::middleware('jwt.auth')->group(function () {
-        Route::post('logout', 'AuthController@logout');
-        Route::post('upload', 'ImageQrController@upload');
-        Route::put('imageqr/{uuid}', 'ImageQrController@update');
-        Route::get('url/{uuid}', 'ImageQrController@show');
-        Route::get('imagequeue', 'ImageQrController@index');
-    });
+Route::middleware('jwt.verify')->group(function () {
+    Route::post('logout', 'AuthController@logout');
+    Route::post('imageqr', 'ImageQrController@store');
+    Route::put('imageqr/{uuid}', 'ImageQrController@update');
+    Route::get('imageqr/{uuid}', 'ImageQrController@show');
+    Route::get('imagequeue', 'ImageQrController@index');
 });

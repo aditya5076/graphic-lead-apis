@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Symfony\Component\HttpFoundation\Response;
+use Tymon\JWTAuth\Facades\JWTAuth as FacadesJWTAuth;
 
 class AuthController extends Controller
 {
@@ -196,7 +197,7 @@ class AuthController extends Controller
         $input = $request->only('username', 'password');
         $jwt_token = null;
 
-        if (!$jwt_token = JWTAuth::attempt($input)) {
+        if (!$jwt_token = FacadesJWTAuth::attempt($input)) {
             return response()->json(['detail' => [
                 'success' => false,
                 'message' => 'Invalid username or password',

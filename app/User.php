@@ -2,23 +2,19 @@
 
 namespace App;
 
-<<<<<<< HEAD
-// use App\Traits\HasJWT;
-=======
->>>>>>> 370aab338a16c0e3ae917c10e17f67b3c7e31b14
+use App\Traits\HasJWT;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
-<<<<<<< HEAD
-use Laravel\Sanctum\HasApiTokens;
-=======
-use App\Traits\HasJWT;
->>>>>>> 370aab338a16c0e3ae917c10e17f67b3c7e31b14
+// use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+// use Tymon\JWTAuth\Contracts\JWTSubject;
+
+class User extends Authenticatable implements JWTSubject
 {
-    use Notifiable, HasApiTokens;
+    use Notifiable, HasJWT;
 
     protected $primaryKey = 'userid';
 

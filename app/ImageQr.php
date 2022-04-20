@@ -21,6 +21,10 @@ class ImageQr extends Model
         'status',
     ];
 
+    protected $hidden = [
+        'userid',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);

@@ -28,4 +28,5 @@ Route::middleware('jwt.verify')->group(function () {
     Route::put('imageqr/{uuid}', 'ImageQrController@update');
     Route::get('imageqr/{uuid}', 'ImageQrController@show');
     Route::get('imagequeue', 'ImageQrController@index');
+    Route::get('backend-notify/{uuid}', 'ImageQrController@backendNotify');
 });

@@ -89,23 +89,42 @@ class ImageQrController extends Controller
         $fields = Validator::make($request->all(), [
             'image' => 'required|array',
             'attributes' => 'nullable|array',
+            'output' => 'nullable|array',
             'attributes.error_connection' => ['nullable', Rule::in(['L', 'M', 'Q', 'H'])],
             'attributes.quiet_zone' => ['nullable', Rule::in([0, 1, 2, 3, 4])],
             'attributes.version' => ['nullable', Rule::in([0, 1, 2, 3, 4, 5])],
             'attributes.rotate' => ['nullable', Rule::in([0, 90, 180, 270])],
             'attributes.eye_shape' => ['nullable', Rule::in(['rounded', 'sqaure'])],
+            'output.format' => ['nullable', Rule::in(['jpeg', 'png', 'jpg'])],
+            'output.callback_success' => 'nullable|string',
+            'output.callback_failure' => 'nullable|string',
         ]);
 
-        if ($fields->fails()) return \response()->json(['errors' => $fields->errors()->messages()], 422);
+        if ($fields->fails()) {
+            return \response()->json(['errors' => $fields->errors()->messages()], 422);
+        }
+
 
         $image = new ImageQr;
         $image->imageid = $this->v4();
         $image->userid = \auth()->user()->userid;
 
+        $outputs = $request->json('output');
+        $attributes = $request->json('attributes');
+        $attributes['data'] = $request->data;
+        if (array_key_exists('error_connection', $attributes)) {
+            $attributes['ecl'] = $attributes['error_connection'];
+            unset($attributes['error_connection']);
+        }
+        $attributes['callback_success'] = "https://" . $_SERVER['HTTP_HOST'] . "" . '/backend-notify/' . $image->imageid . '?status=success';
+        $attributes['callback_failure'] = "https://" . $_SERVER['HTTP_HOST'] . "" . '/backend-notify/' . $image->imageid . '?status=failure';
+
         if (array_key_exists('method', $request->image)) {
             if ($request->image['method'] === 'url') {
 
                 $url = $request->image['url'];
+
+                if (!@getimagesize($url)) return \response()->json(['error' => 'image url is invalid'], 422);
 
                 if ($this->validImage($url)) {
 
@@ -119,19 +138,30 @@ class ImageQrController extends Controller
 
                     $img = $image->imageid . '.' . $ext;
                     // Function to write image into file
-                    file_put_contents('images/' . $img, file_get_contents($url));
+                    file_put_contents(\storage_path('images/') . $img, file_get_contents($url));
                     $image->contenttype = $imageType;
                     $image->submitted = \now();
-                    $image->ttl = \now();
-                    $image->status = 'OK';
+                    $image->ttl = \now()->addHours(24);
+                    $image->status = 'processing';
+                    $image->callback_success = \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
+                    $image->callback_failure = \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
                     $image->save();
 
-                    Storage::put('json/ImageQRRequests/' . $image->imageid . '.json', \json_encode($request->attributes));
-                    return \response()->json(['success' => "image is uploaded to the system. Here is the id {$image->imageid}"]);
+                    // \execCmd("scp -o StrictHostKeyChecking=no /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.jpg /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.json submit@stage1-1.intranet.graphiclead.com:process/");
+
+                    Storage::put($image->imageid . '.json', \json_encode($attributes));
+                    // $response['image_size'] = @\getimagesize($url);
+                    $response['id'] = $image->imageid;
+                    $response['image_size'] = \round(\filesize(\storage_path('images/') . $image->imageid . "." . $ext) / 1024, 2) . 'KB';
+                    return \response()->json($response);
                 }
             } else {
+                $image->ttl = \now()->addHours(24);
+                $image->status = 'waiting for upload';
+                $image->callback_success = \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
+                $image->callback_failure = \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
                 $image->save();
-                Storage::put('json/ImageQRRequests/' . $image->imageid . '.json', \json_encode($request->attributes));
+                Storage::put($image->imageid . '.json', \json_encode($attributes));
                 return \response()->json([
                     'id' => $image->imageid,
                     'upload_url' =>  "https://" . $_SERVER['HTTP_HOST'] . "" . $_SERVER['REQUEST_URI'] . "/" . $image->imageid
@@ -241,19 +271,25 @@ class ImageQrController extends Controller
 
             if ($fileExten) {
                 $objInputStream = fopen("php://input", "rb");
-                $objSaveStream = fopen('images/' . $uuid . "." . $fileExten, "wb");
+                $objSaveStream = fopen(\storage_path('images/') . $uuid . "." . $fileExten, "wb");
                 stream_copy_to_stream($objInputStream, $objSaveStream);
 
+                //external command
+                $appPath = "https://" . $_SERVER['HTTP_HOST'];
+                // return $storedImagePath = $appPath . \storage_path('images/') . $uuid . "." . $fileExten;
+
+                // \exec("scp -o StrictHostKeyChecking=no  /full-path-to-UUID.TYPE  /full-path-to-UUID.json submit@stage1-1.intranet.graphiclead.com:process/");
 
                 $image->contenttype = $mimeType;
                 $image->submitted = \now();
-                $image->ttl = \now();
-                $image->status = 'OK';
+                $image->ttl = \now()->addHours(24);
+                $image->status = 'processing';
                 $image->save();
 
 
                 return \response()->json([
-                    'success' => "$uuid Received",
+                    'id' => $image->imageid,
+                    'image_size' => \round(\filesize(\storage_path('images/') . $uuid . "." . $fileExten) / 1024, 2) . 'KB'
                 ], 201);
             } else {
                 return \response()->json([
@@ -296,19 +332,23 @@ class ImageQrController extends Controller
     {
         $image = ImageQr::where('imageid', $uuid)->where('userid', \auth()->user()->userid)->first();
         if ($image) {
-            $words = \explode('/', $image->contenttype);
-            $ext = $words[1];
-            // $content = Storage::disk('public')->get($image->imageid . '.' . $ext);
-            // return response($content)->header('content-type', $image->contenttype);
-            $file = public_path('images\\') . $image->imageid . "." . $ext;
-            $headers = array(
-                "Content-Type: $image->contenttype",
-            );
 
-            $image->processed = \now();
-            $image->save();
+            if ($image->processed) {
+                $words = \explode('/', $image->contenttype);
+                $ext = $words[1];
+                $file = \storage_path('images\\') . $image->imageid . "." . $ext;
+                $headers = array(
+                    "Content-Type: $image->contenttype",
+                );
 
-            return Response::download($file, "$image->imageid . '.' . $ext", $headers);
+                // $image->processed = \now();
+                $image->save();
+                return Response::download($file, "$image->imageid . '.' . $ext", $headers);
+            } else {
+                return \response()->json([
+                    'message' => $image->contenttype
+                ], 422);
+            }
         }
         return \response()->json([
             'error' => 'Something went wrong'
@@ -346,5 +386,20 @@ class ImageQrController extends Controller
         if (\count($images) > 0) return \response()->json(['data' => $images], 200);
 
         return \response()->json(['errors' => 'something went wrong'], 422);
+    }
+
+    public function backendNotify(Request $request, $uuid)
+    {
+        $image = ImageQr::findOrFail($uuid);
+        $image->ttl = \now()->addHours(24);
+
+        if ($request->query('status')) {
+
+            if ($request->query('status') == 'failure') {
+                $image->status = 'Failed';
+                $image->save();
+            } else if ($request->query('status') == 'success') {
+            }
+        }
     }
 }

@@ -19,14 +19,16 @@ use Illuminate\Support\Facades\Route;
 // });
 
 
-Route::post('register', 'AuthController@register');
-Route::post('login', 'AuthController@login');
+Route::middleware('json.verify')->group(function () {
+    Route::post('register', 'AuthController@register');
+    Route::post('login', 'AuthController@login');
 
-Route::middleware('jwt.verify')->group(function () {
-    Route::post('logout', 'AuthController@logout');
-    Route::post('imageqr', 'ImageQrController@store');
-    Route::put('imageqr/{uuid}', 'ImageQrController@update');
-    Route::get('imageqr/{uuid}', 'ImageQrController@show');
-    Route::get('imagequeue', 'ImageQrController@index');
-    Route::get('backend-notify/{uuid}', 'ImageQrController@backendNotify');
+    Route::middleware(['jwt.verify'])->group(function () {
+        Route::post('logout', 'AuthController@logout');
+        Route::post('imageqr', 'ImageQrController@store');
+        Route::put('imageqr/{uuid}', 'ImageQrController@update');
+        Route::get('imageqr/{uuid}', 'ImageQrController@show');
+        Route::get('imagequeue', 'ImageQrController@index');
+        Route::get('backend-notify/{uuid}', 'ImageQrController@backendNotify');
+    });
 });

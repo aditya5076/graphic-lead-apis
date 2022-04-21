@@ -143,8 +143,8 @@ class ImageQrController extends Controller
                     $image->submitted = \now();
                     $image->ttl = \now()->addHours(24);
                     $image->status = 'processing';
-                    $image->callback_success = \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
-                    $image->callback_failure = \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
+                    $image->callback_success = \count($outputs) > 0 && \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
+                    $image->callback_failure = \count($outputs) > 0 &&  \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
                     $image->save();
 
                     // \execCmd("scp -o StrictHostKeyChecking=no /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.jpg /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.json submit@stage1-1.intranet.graphiclead.com:process/");
@@ -158,8 +158,8 @@ class ImageQrController extends Controller
             } else {
                 $image->ttl = \now()->addHours(24);
                 $image->status = 'waiting for upload';
-                $image->callback_success = \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
-                $image->callback_failure = \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
+                $image->callback_success = \count($outputs) > 0 && \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
+                $image->callback_failure = \count($outputs) > 0 && \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
                 $image->save();
                 Storage::put($image->imageid . '.json', \json_encode($attributes));
                 return \response()->json([

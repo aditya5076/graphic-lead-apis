@@ -26,7 +26,7 @@ class CheckJsonIsValid
 
         if (json_last_error() != JSON_ERROR_NONE) {
             // There was an error
-            return \response()->json(['error' => 'The request is not a valid JSON.'], 400);
+            return \response()->json(['detail' => ['msg' => 'The request is not a valid JSON.']], 400);
         }
         return $next($request);
     }

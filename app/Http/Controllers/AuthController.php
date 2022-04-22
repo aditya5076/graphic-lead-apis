@@ -193,7 +193,7 @@ class AuthController extends Controller
             'password' => 'required|string|min:6|max:10',
         ]);
 
-        if ($fields->fails()) return \response()->json(['errors' => $fields->errors()->messages()], 422);
+        if ($fields->fails()) return \response()->json(['detail' => ['msg' => $fields->errors()->messages()]], 422);
         $input = $request->only('username', 'password');
         $jwt_token = null;
 

@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Route;
 
 // Route::middleware('json.verify')->group(function () {
 Route::post('register', 'AuthController@register');
-Route::post('login', 'AuthController@login');
+Route::post('login', 'AuthController@login')->middleware('json.verify');
 
 Route::middleware(['jwt.verify'])->group(function () {
     Route::post('logout', 'AuthController@logout');

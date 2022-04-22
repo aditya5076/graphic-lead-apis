@@ -143,14 +143,35 @@ class ImageQrController extends Controller
                     $image->submitted = \now();
                     $image->ttl = \now()->addHours(24);
                     $image->status = 'processing';
-                    $image->callback_success = \count($outputs) > 0 && \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
-                    $image->callback_failure = \count($outputs) > 0 &&  \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
+                    $image->callback_success = isset($outputs) && \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
+                    $image->callback_failure =  isset($outputs) &&  \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
                     $image->save();
 
                     // \execCmd("scp -o StrictHostKeyChecking=no /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.jpg /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.json submit@stage1-1.intranet.graphiclead.com:process/");
 
+                    // STORE INPUTS IN JSON
                     Storage::put($image->imageid . '.json', \json_encode($attributes));
-                    // $response['image_size'] = @\getimagesize($url);
+
+                    //EXTERNAL COMMANDS
+                    $imageFilePath = \base_path(\storage_path('images/') . $image->imageid . "." . $ext);
+                    $imageJsonPath = \base_path(\storage_path('images/') . $image->imageid . ".json");
+
+                    $resultCode = \exec("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/ $imageFilePath /$imageJsonPath");
+
+                    if ($resultCode != 0) {
+                        $image->status = 'Failed to send image backend';
+                        $image->save();
+                        return;
+                    }
+
+                    $resultCode2 = \exec("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py –load-json /home/submit/process/$image->imageid.json –input_image /home/submit/process/$image->imageid.$ext");
+
+                    if ($resultCode2 != 0) {
+                        $image->status = 'Failed to start image backend processing';
+                        $image->save();
+                        return;
+                    }
+
                     $response['id'] = $image->imageid;
                     $response['image_size'] = \round(\filesize(\storage_path('images/') . $image->imageid . "." . $ext) / 1024, 2) . 'KB';
                     return \response()->json($response);
@@ -158,8 +179,8 @@ class ImageQrController extends Controller
             } else {
                 $image->ttl = \now()->addHours(24);
                 $image->status = 'waiting for upload';
-                $image->callback_success = \count($outputs) > 0 && \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
-                $image->callback_failure = \count($outputs) > 0 && \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
+                $image->callback_success = isset($outputs) && \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
+                $image->callback_failure = isset($outputs) && \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
                 $image->save();
                 Storage::put($image->imageid . '.json', \json_encode($attributes));
                 return \response()->json([
@@ -210,44 +231,6 @@ class ImageQrController extends Controller
      */
     public function update($uuid, Request $request)
     {
-        // $fields = Validator::make($request->all(), [
-        //     'photo' => 'required|mimes:jpeg,bmp'
-        // ]);
-        // if ($fields->fails()) return \response()->json(['errors' => $fields->errors()->messages()], 422);
-
-        // \file_get_contents()
-
-        // return $request->header('content-type');
-
-        // $objInputStream = fopen("php://input", "rb");
-        // $objSaveStream = fopen($uuid . "." . 'png', "wb");
-        // // Storage::put('app/public/new', $objSaveStream);
-        // stream_copy_to_stream($objInputStream, $objSaveStream);
-
-        // echo "$uuid Received\n";
-
-
-        // if ($image) {
-        //     if ($request->hasFile('image')) {
-        //         $fileNameWithExt = $request->file('image')->getClientOriginalName();
-        //         $fileName = \pathinfo($fileNameWithExt, \PATHINFO_FILENAME);
-        //         $ext = $request->file('image')->getClientOriginalExtension();
-        //         $path = $request->file('image')->storeAs('images/', $uuid . '.' . $ext);
-
-        //         $image->contenttype = 'image/' . $ext;
-        //         $image->submitted = \now();
-        //         $image->ttl = \now();
-        //         $image->status = 'OK';
-        //         $image->save();
-
-        //         return \response()->json([
-        //             'id' => $uuid,
-        //             'size' => $request->file('image')->getSize(),
-        //         ], 201);
-        //     }
-        // }
-
-
 
         $image = ImageQr::findOrFail($uuid);
 
@@ -274,17 +257,33 @@ class ImageQrController extends Controller
                 $objSaveStream = fopen(\storage_path('images/') . $uuid . "." . $fileExten, "wb");
                 stream_copy_to_stream($objInputStream, $objSaveStream);
 
-                //external command
-                $appPath = "https://" . $_SERVER['HTTP_HOST'];
-                // return $storedImagePath = $appPath . \storage_path('images/') . $uuid . "." . $fileExten;
-
-                // \exec("scp -o StrictHostKeyChecking=no  /full-path-to-UUID.TYPE  /full-path-to-UUID.json submit@stage1-1.intranet.graphiclead.com:process/");
-
                 $image->contenttype = $mimeType;
                 $image->submitted = \now();
                 $image->ttl = \now()->addHours(24);
                 $image->status = 'processing';
                 $image->save();
+
+                //EXTERNAL COMMANDS
+                // return $storedImagePath = $appPath . \storage_path('images/') . $uuid . "." . $fileExten;
+
+                $imageFilePath = \base_path(\storage_path('images/') . $uuid . "." . $fileExten);
+                $imageJsonPath = \base_path(\storage_path('images/') . $uuid . ".json");
+
+                $resultCode = \exec("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/ $imageFilePath /$imageJsonPath");
+
+                if ($resultCode != 0) {
+                    $image->status = 'Failed to send image backend';
+                    $image->save();
+                    return;
+                }
+
+                $resultCode2 = \exec("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py –load-json /home/submit/process/$uuid.json –input_image /home/submit/process/$uuid.$fileExten");
+
+                if ($resultCode2 != 0) {
+                    $image->status = 'Failed to start image backend processing';
+                    $image->save();
+                    return;
+                }
 
 
                 return \response()->json([
@@ -399,7 +398,31 @@ class ImageQrController extends Controller
                 $image->status = 'Failed';
                 $image->save();
             } else if ($request->query('status') == 'success') {
+
+                $words = \explode('/', $image->contenttype);
+                $ext = $words[1];
+
+                $imageFilePath = \base_path(\storage_path('images/') . $image->imageid . "." . $ext);
+                $imageJsonPath = \base_path(\storage_path('images/') . $image->imageid . ".json");
+
+                $resultCode = \exec("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/ $imageFilePath /$imageJsonPath");
+
+                if ($resultCode != 0) {
+                    $image->status = 'Failed to retrieve image from backend server';
+                    $image->save();
+                    if (isset($image->callback_failure)) {
+                        $response = Http::get($image->callback_failure);
+                    }
+                } else if ($resultCode == 0) {
+                    $image->processed = \now();
+                    $image->save();
+                    if (isset($image->callback_success)) {
+                        $response = Http::get($image->callback_success);
+                    }
+                }
             }
+
+            return \response()->json(['id' => $uuid]);
         }
     }
 }

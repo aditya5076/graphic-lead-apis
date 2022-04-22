@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -29,6 +31,23 @@ Route::middleware('json.verify')->group(function () {
         Route::put('imageqr/{uuid}', 'ImageQrController@update');
         Route::get('imageqr/{uuid}', 'ImageQrController@show');
         Route::get('imagequeue', 'ImageQrController@index');
-        Route::get('backend-notify/{uuid}', 'ImageQrController@backendNotify');
     });
+    Route::get('backend-notify/{uuid}', 'ImageQrController@backendNotify');
 });
+
+
+// Route::get('storage/{filename}', function ($filename) {
+//     $path = storage_path('images/' . $filename);
+
+//     if (!File::exists($path)) {
+//         abort(404);
+//     }
+
+//     $file = File::get($path);
+//     $type = File::mimeType($path);
+
+//     $response = Response::make($file, 200);
+//     $response->header("Content-Type", $type);
+
+//     return $response;
+// });

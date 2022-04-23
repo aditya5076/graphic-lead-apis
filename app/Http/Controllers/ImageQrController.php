@@ -11,9 +11,34 @@ use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Symfony\Component\Process\Process;
 
 class ImageQrController extends Controller
 {
+
+    // SHELL COMMANDS
+    public function execute($cmd): string
+    {
+        $process = Process::fromShellCommandline($cmd);
+
+        $processOutput = '';
+
+        $captureOutput = function ($type, $line) use (&$processOutput) {
+            $processOutput .= $line;
+        };
+
+        $process->setTimeout(null)
+            ->run($captureOutput);
+
+        if ($process->getExitCode()) {
+            $exception = new Exception($cmd . " - " . $processOutput);
+            report($exception);
+
+            throw $exception;
+        }
+
+        return $processOutput;
+    }
     /**
      * @OA\Get(
      *     path="/projects",
@@ -148,16 +173,17 @@ class ImageQrController extends Controller
                     $image->callback_failure =  isset($outputs) &&  \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
                     $image->save();
 
-                    // \execCmd("scp -o StrictHostKeyChecking=no /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.jpg /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.json submit@stage1-1.intranet.graphiclead.com:process/");
+                    // $this->executeCmd("scp -o StrictHostKeyChecking=no /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.jpg /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.json submit@stage1-1.intranet.graphiclead.com:process/");
 
                     // STORE INPUTS IN JSON
                     Storage::put($image->imageid . '.json', \json_encode($attributes));
 
                     //EXTERNAL COMMANDS
-                    $imageFilePath = \base_path(\storage_path('images/') . $image->imageid . "." . $ext);
-                    $imageJsonPath = \base_path(\storage_path('images/') . $image->imageid . ".json");
+                    $imageFilePath = \storage_path('images/') . $image->imageid . "." . $ext;
+                    $imageJsonPath = \storage_path('images/') . $image->imageid . ".json";
 
-                    $resultCode = \exec("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/ $imageFilePath /$imageJsonPath");
+                    // $resultCode = $this->execute("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/ $imageFilePath /$imageJsonPath");
+                    $resultCode = $this->execute("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/ $imageFilePath /$imageJsonPath");
 
                     if ($resultCode != 0) {
                         $image->status = 'Failed to send image backend';
@@ -165,7 +191,7 @@ class ImageQrController extends Controller
                         return \response()->json(['detail' => ['msg' => 'Failed to send image backend']], 500);
                     }
 
-                    $resultCode2 = \exec("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py –load-json /home/submit/process/$image->imageid.json –input_image /home/submit/process/$image->imageid.$ext");
+                    $resultCode2 = $this->execute("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py –load-json /home/submit/process/$image->imageid.json –input_image /home/submit/process/$image->imageid.$ext");
 
                     if ($resultCode2 != 0) {
                         $image->status = 'Failed to start image backend processing';
@@ -270,10 +296,10 @@ class ImageQrController extends Controller
                 //EXTERNAL COMMANDS
                 // return $storedImagePath = $appPath . \storage_path('images/') . $uuid . "." . $fileExten;
 
-                $imageFilePath = \base_path(\storage_path('images/') . $uuid . "." . $fileExten);
-                $imageJsonPath = \base_path(\storage_path('images/') . $uuid . ".json");
+                $imageFilePath = \storage_path('images/') . $uuid . "." . $fileExten;
+                $imageJsonPath = \storage_path('images/') . $uuid . ".json";
 
-                $resultCode = \exec("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/ $imageFilePath /$imageJsonPath");
+                $resultCode = $this->execute("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/ $imageFilePath /$imageJsonPath");
 
                 if ($resultCode != 0) {
                     $image->status = 'Failed to send image backend';
@@ -281,7 +307,7 @@ class ImageQrController extends Controller
                     return \response()->json(['detail' => ['msg' => 'Failed to send image backend']], 500);
                 }
 
-                $resultCode2 = \exec("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py –load-json /home/submit/process/$uuid.json –input_image /home/submit/process/$uuid.$fileExten");
+                $resultCode2 = $this->execute("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py –load-json /home/submit/process/$uuid.json –input_image /home/submit/process/$uuid.$fileExten");
 
                 if ($resultCode2 != 0) {
                     $image->status = 'Failed to start image backend processing';
@@ -407,10 +433,10 @@ class ImageQrController extends Controller
                 $words = \explode('/', $image->contenttype);
                 $ext = $words[1];
 
-                $imageFilePath = \base_path(\storage_path('images/') . $image->imageid . "." . $ext);
-                $imageJsonPath = \base_path(\storage_path('images/') . $image->imageid . ".json");
+                $imageFilePath = \storage_path('images/') . $image->imageid . "." . $ext;
+                $imageJsonPath = \storage_path('images/') . $image->imageid . ".json";
 
-                $resultCode = \exec("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/ $imageFilePath /$imageJsonPath");
+                $resultCode = $this->execute("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/ $imageFilePath /$imageJsonPath");
 
                 if ($resultCode != 0) {
                     $image->status = 'Failed to retrieve image from backend server';

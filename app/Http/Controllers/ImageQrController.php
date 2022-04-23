@@ -17,7 +17,7 @@ class ImageQrController extends Controller
 {
 
     // SHELL COMMANDS
-    public function execute($cmd): string
+    public function execute($cmd)
     {
         $process = Process::fromShellCommandline($cmd);
 
@@ -30,14 +30,16 @@ class ImageQrController extends Controller
         $process->setTimeout(null)
             ->run($captureOutput);
 
-        if ($process->getExitCode()) {
-            $exception = new Exception($cmd . " - " . $processOutput);
-            report($exception);
+        return $process->getExitCode();
 
-            throw $exception;
-        }
+        // if ($process->getExitCode()) {
+        //     $exception = new ShellCommandFailedException($cmd . " - " . $processOutput);
+        //     report($exception);
 
-        return $processOutput;
+        //     throw $exception;
+        // }
+
+        // return $processOutput;
     }
     /**
      * @OA\Get(

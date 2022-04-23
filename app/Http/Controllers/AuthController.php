@@ -209,7 +209,7 @@ class AuthController extends Controller
             'success' => true,
             'username' => $request->username,
             'token' => $jwt_token,
-            'ttl' => \now()->addMinutes(60),
+            'ttl' => \now()->addMinutes(60)->format('Y-m-d H:m:s'),
         ], 201);
     }
 

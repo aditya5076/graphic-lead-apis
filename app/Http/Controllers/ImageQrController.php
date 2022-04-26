@@ -146,8 +146,8 @@ class ImageQrController extends Controller
             $attributes['ecl'] = $attributes['error_connection'];
             unset($attributes['error_connection']);
         }
-        $attributes['callback_success'] = url('/') . '/backend-notify/' . $image->imageid . '?status=success';
-        $attributes['callback_failure'] = url('/') . '/backend-notify/' . $image->imageid . '?status=failure';
+        $attributes['callback_success'] = url('/backend-notify/') . $image->imageid . '?status=success';
+        $attributes['callback_failure'] = url('/backend-notify/')  . $image->imageid . '?status=failure';
 
         if (array_key_exists('method', $request->image)) {
             if ($request->image['method'] === 'url') {
@@ -219,7 +219,7 @@ class ImageQrController extends Controller
                 Storage::put($image->imageid . '.json', \json_encode($attributes));
                 return \response()->json([
                     'id' => $image->imageid,
-                    'upload_url' =>  url('/imageqr') . "/" . $image->imageid
+                    'upload_url' =>  url('/imageqr/') . $image->imageid
                 ], 201);
             }
         }

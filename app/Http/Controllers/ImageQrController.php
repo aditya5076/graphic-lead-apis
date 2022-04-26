@@ -43,6 +43,16 @@ class ImageQrController extends Controller
         // return $processOutput;
         return ['process_code' => $processCode, 'process_output' => $processOutput];
     }
+
+    public function externalCommand1($imageFilePath, $imageJsonPath)
+    {
+        return $this->execute("scp -o StrictHostKeyChecking=no $imageFilePath $imageJsonPath submit@stage1-1.intranet.graphiclead.com:process/");
+    }
+
+    public function externalCommand2(ImageQr $image, $ext)
+    {
+        return  $this->execute("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py --load-json /home/submit/process/$image->imageid.json --input_image /home/submit/process/$image->imageid.$ext");
+    }
     /**
      * @OA\Get(
      *     path="/projects",
@@ -189,7 +199,7 @@ class ImageQrController extends Controller
                     $imageJsonPath = \storage_path('images/') . $image->imageid . ".json";
 
                     // scp -o StrictHostKeyChecking=no $imageFilePath $imageJsonPath submit@stage1-1.intranet.graphiclead.com:process/
-                    $resultCode = $this->execute("scp -o StrictHostKeyChecking=no $imageFilePath $imageJsonPath submit@stage1-1.intranet.graphiclead.com:process/");
+                    $resultCode = $this->externalCommand1($imageFilePath, $imageJsonPath);
 
                     if ($resultCode['process_code']) {
                         $image->status = 'Failed to send image to backend: ' . $resultCode['process_output'];
@@ -197,7 +207,7 @@ class ImageQrController extends Controller
                         return \response()->json(['detail' => ['msg' => 'Failed to send image to backend']], 500);
                     }
 
-                    $resultCode2 = $this->execute("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py --load-json /home/submit/process/$image->imageid.json --input_image /home/submit/process/$image->imageid.$ext");
+                    $resultCode2 = $this->externalCommand2($image, $ext);
 
                     if ($resultCode2['process_code']) {
                         $image->status = 'Failed to start image backend processing: ' . $resultCode2['process_output'];
@@ -280,10 +290,12 @@ class ImageQrController extends Controller
             // Cakephp $this->request->contentType() ??
             $mimeType = $request->header('content-type');
             $fileExten = "";
-            if ($mimeType == "image/jpeg" || $mimeType == "image/jpg") {
-                $fileExten = "jpg";
+            if ($mimeType == "image/jpeg") {
+                $fileExten = "jpeg";
             } elseif ($mimeType == "image/png") {
                 $fileExten = "png";
+            } elseif ($mimeType == 'image/jpg') {
+                $fileExten = "jpg";
             } else {
                 // throw new Exception("Error Processing Request", 1);
                 return \response()->json(['detail' => ['msg' => 'Error Processing Request']], 400);
@@ -306,7 +318,7 @@ class ImageQrController extends Controller
                 $imageFilePath = \storage_path('images/') . $uuid . "." . $fileExten;
                 $imageJsonPath = \storage_path('images/') . $uuid . ".json";
 
-                $resultCode = $this->execute("scp -o StrictHostKeyChecking=no $imageFilePath $imageJsonPath submit@stage1-1.intranet.graphiclead.com:process/");
+                $resultCode = $this->externalCommand1($imageFilePath, $imageJsonPath);
 
                 if ($resultCode['process_code']) {
                     $image->status = 'Failed to send image to backend: ' . $resultCode['process_output'];
@@ -314,7 +326,7 @@ class ImageQrController extends Controller
                     return \response()->json(['detail' => ['msg' => 'Failed to send to image to backend']], 500);
                 }
 
-                $resultCode2 = $this->execute("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py --load-json /home/submit/process/$uuid.json --input_image /home/submit/process/$uuid.$fileExten");
+                $resultCode2 = $this->externalCommand2($image, $fileExten);
 
                 if ($resultCode2['process_code']) {
                     $image->status = 'Failed to start image backend processing: ' . $resultCode2['process_output'];
@@ -373,6 +385,8 @@ class ImageQrController extends Controller
                 $words = \explode('/', $image->contenttype);
                 $ext = $words[1];
                 $file = \storage_path('images/') . $image->imageid . "." . $ext;
+
+                if (!isset($file)) return \response()->json(['detail' => ['msg' => 'Image not found']], 500);
                 $headers = array(
                     "Content-Type: $image->contenttype",
                 );

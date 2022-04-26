@@ -146,6 +146,8 @@ class ImageQrController extends Controller
             $attributes['ecl'] = $attributes['error_connection'];
             unset($attributes['error_connection']);
         }
+        // $attributes['callback_success'] = "https://" . $_SERVER['HTTP_HOST'] . "" . '/backend-notify/' . $image->imageid . '?status=success';
+        // $attributes['callback_failure'] = "https://" . $_SERVER['HTTP_HOST'] . "" . '/backend-notify/' . $image->imageid . '?status=failure';
         $attributes['callback_success'] = url('/') . '/backend-notify/' . $image->imageid . '?status=success';
         $attributes['callback_failure'] = url('/') . '/backend-notify/' . $image->imageid . '?status=failure';
 
@@ -191,16 +193,18 @@ class ImageQrController extends Controller
                     // scp -o StrictHostKeyChecking=no $imageFilePath $imageJsonPath submit@stage1-1.intranet.graphiclead.com:process/
                     $resultCode = $this->execute("scp -o StrictHostKeyChecking=no $imageFilePath $imageJsonPath submit@stage1-1.intranet.graphiclead.com:process/");
 
-                    if ($resultCode['process_code']) {
-                        $image->status = 'Failed to send image to backend: ' . $resultCode['process_output'];
+                    if (\count($resultCode) && $resultCode['process_code']) {
+                        // $image->status = 'Failed to send image backend';
+                        $image->status = $resultCode['process_output'];
                         $image->save();
-                        return \response()->json(['detail' => ['msg' => 'Failed to send image to backend']], 500);
+                        return \response()->json(['detail' => ['msg' => 'Failed to send image backend']], 500);
                     }
 
-                    $resultCode2 = $this->execute("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py --load-json /home/submit/process/$image->imageid.json --input_image /home/submit/process/$image->imageid.$ext");
+                    $resultCode2 = $this->execute("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py -–load-json /home/submit/process/$image->imageid.json -–input_image /home/submit/process/$image->imageid.$ext");
 
-                    if ($resultCode2['process_code']) {
-                        $image->status = 'Failed to start image backend processing: ' . $resultCode2['process_output'];
+                    if (\count($resultCode2) && $resultCode2['process_code']) {
+                        // $image->status = 'Failed to start image backend processing';
+                        $image->status = $resultCode2['process_output'];
 
                         $image->save();
                         return \response()->json(['detail' => ['msg' => 'Failed to start image backend processing']], 500);
@@ -219,7 +223,7 @@ class ImageQrController extends Controller
                 Storage::put($image->imageid . '.json', \json_encode($attributes));
                 return \response()->json([
                     'id' => $image->imageid,
-                    'upload_url' =>  url('/imageqr') . "/" . $image->imageid
+                    'upload_url' =>  "https://" . $_SERVER['HTTP_HOST'] . "" . $_SERVER['REQUEST_URI'] . "/" . $image->imageid
                 ], 201);
             }
         }
@@ -308,16 +312,18 @@ class ImageQrController extends Controller
 
                 $resultCode = $this->execute("scp -o StrictHostKeyChecking=no $imageFilePath $imageJsonPath submit@stage1-1.intranet.graphiclead.com:process/");
 
-                if ($resultCode['process_code']) {
-                    $image->status = 'Failed to send image to backend: ' . $resultCode['process_output'];
+                if (\count($resultCode) && $resultCode['process_code']) {
+                    // $image->status = 'Failed to send image backend';
+                    $image->status = $resultCode['process_output'];
                     $image->save();
-                    return \response()->json(['detail' => ['msg' => 'Failed to send to image to backend']], 500);
+                    return \response()->json(['detail' => ['msg' => 'Failed to send image backend']], 500);
                 }
 
-                $resultCode2 = $this->execute("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py --load-json /home/submit/process/$uuid.json --input_image /home/submit/process/$uuid.$fileExten");
+                $resultCode2 = $this->execute("ssh -o StrictHostKeyChecking=no  submit@stage1-1.intranet.graphiclead.com bin/submit-job.py -–load-json /home/submit/process/$uuid.json -–input_image /home/submit/process/$uuid.$fileExten");
 
-                if ($resultCode2['process_code']) {
-                    $image->status = 'Failed to start image backend processing: ' . $resultCode2['process_output'];
+                if (\count($resultCode2) && $resultCode2['process_code']) {
+                    // $image->status = 'Failed to send image backend';
+                    $image->status = $resultCode2['process_output'];
                     $image->save();
                     return \response()->json(['detail' => ['msg' => 'Failed to start image backend processing']], 500);
                 }
@@ -372,21 +378,23 @@ class ImageQrController extends Controller
             if ($image->processed) {
                 $words = \explode('/', $image->contenttype);
                 $ext = $words[1];
-                $file = \storage_path('images/') . $image->imageid . "." . $ext;
+                $file = \storage_path('images\\') . $image->imageid . "." . $ext;
                 $headers = array(
                     "Content-Type: $image->contenttype",
                 );
 
+                // $image->processed = \now();
+                $image->save();
                 return Response::download($file, "$image->imageid . '.' . $ext", $headers);
             } else {
                 return \response()->json(['detail' => [
-                    'msg' => $image->status
+                    'msg' => $image->contenttype
                 ]], 422);
             }
         }
         return \response()->json(['detail' => [
-            'msg' => "Unauthorized",
-        ]], 401);
+            'msg' => "something went wrong",
+        ]], 400);
     }
 
     /**
@@ -431,28 +439,29 @@ class ImageQrController extends Controller
         if ($request->query('status')) {
 
             if ($request->query('status') == 'failure') {
-                $image->status = 'Code generation failed';
+                $image->status = 'Failed';
                 $image->save();
-                if (isset($image->callback_failure)) {
-                    $response = Http::get($image->callback_failure);
-                }
-                return \response()->json(['detail' => ['msg' => 'Received code failure notification']], 201);
+                return \response()->json(['detail' => ['msg' => 'Failed']], 500);
             } else if ($request->query('status') == 'success') {
 
                 $words = \explode('/', $image->contenttype);
                 $ext = $words[1];
 
-                $resultCode = $this->execute("scp -o StrictHostKeyChecking=no submit@stage1-1.intranet.graphiclead.com:process/" . $image->imageid . "_output.${ext} " . \storage_path('images/'));
+                $imageFilePath = \storage_path('images/') . $image->imageid . "." . $ext;
+                $imageJsonPath = \storage_path('images/') . $image->imageid . ".json";
 
-                if ($resultCode['process_code']) {
-                    $image->status = 'Failed to retreive image from backend: ' . $resultCode['process_output'];
+                $resultCode = $this->execute("scp -o StrictHostKeyChecking=no $imageFilePath $imageJsonPath submit@stage1-1.intranet.graphiclead.com:process/");
+
+                if (\count($resultCode) && $resultCode['process_code']) {
+                    // $image->status = 'Failed to send image backend';
+                    $image->status = $resultCode['process_output'];
                     $image->save();
                     if (isset($image->callback_failure)) {
                         $response = Http::get($image->callback_failure);
                     } else {
-                        return \response()->json(['detail' => ['error' => 'Failed to retrieve image from backend']], 500);
+                        return \response()->json(['detail' => ['error' => 'Failed to retrieve image from backend server']], 500);
                     }
-                } else {
+                } else if ($resultCode == 0) {
                     $image->processed = \now();
                     $image->save();
                     if (isset($image->callback_success)) {

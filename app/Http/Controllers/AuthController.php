@@ -209,8 +209,8 @@ class AuthController extends Controller
             'success' => true,
             'username' => $request->username,
             'token' => $jwt_token,
-            'ttl' => \now()->addMinutes(60)->format('Y-m-d H:m:s'),
-        ], 201);
+            'ttl' => \config('jwt.ttl') !== '' ? \now()->addMinutes(\config('jwt.ttl'))->format('Y-m-d H:m:s') : '9999-12-31 23:59:59',
+        ]);
     }
 
     /**

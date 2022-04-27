@@ -122,7 +122,8 @@ class AuthController extends Controller
             'company' => 'required|string',
         ]);
 
-        if ($fields->fails()) return \response()->json(['errors' => $fields->errors()->messages()], 422);
+        if ($fields->fails()) return \response()->json(['detail' => ['msg' => $fields->errors()->messages()]], 422);
+        if (\auth()->user()->groups === 0) return \response()->json(['detail' => ['msg' => 'Unauthorized']], 401);
 
         $user = new User();
         $user->fill($request->all());
@@ -130,6 +131,7 @@ class AuthController extends Controller
         $user->codecount = 1;
         $user->lastlogin = \now();
         $user->password = bcrypt($request->password);
+        $user->groups = $request->groups ?? 0;
         $user->save();
 
         if ($this->loginAfterSignUp) {

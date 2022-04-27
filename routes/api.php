@@ -22,10 +22,10 @@ use Illuminate\Support\Facades\Route;
 
 
 // Route::middleware('json.verify')->group(function () {
-Route::post('register', 'AuthController@register');
 Route::post('login', 'AuthController@login')->middleware('json.verify');
 
 Route::middleware(['jwt.verify'])->group(function () {
+    Route::post('register', 'AuthController@register')->middleware('json.verify');
     Route::post('logout', 'AuthController@logout');
     Route::post('imageqr', 'ImageQrController@store')->middleware('json.verify');
     Route::put('imageqr/{uuid}', 'ImageQrController@update');

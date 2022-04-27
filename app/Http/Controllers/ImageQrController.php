@@ -171,7 +171,12 @@ class ImageQrController extends Controller
                 if ($this->validImage($url)) {
 
                     $headers = \get_headers($url);
-                    $contentType = $headers[\count($headers) - 1];
+
+                    foreach ($headers as $key => $value) {
+                        if (preg_match('/\bContent-Type\b/', $value)) $contentType = $value;
+                    }
+
+
                     $imageType = \substr($contentType, 14);
 
 
@@ -304,6 +309,7 @@ class ImageQrController extends Controller
             if ($fileExten) {
                 $objInputStream = fopen("php://input", "rb");
                 $objSaveStream = fopen(\storage_path('images/') . $uuid . "." . $fileExten, "wb");
+                // dd($objSaveStream);
                 stream_copy_to_stream($objInputStream, $objSaveStream);
 
                 $image->contenttype = $mimeType;
@@ -432,6 +438,7 @@ class ImageQrController extends Controller
         $user = \auth()->user();
         $images = ImageQr::where('userid', $user->userid)->get();
         // $images['contenttype'] = 'content_type';
+
         if (\count($images) > 0) return \response()->json(['data' => $images], 200);
 
         return \response()->json(['detail' => ['msg' => 'something went wrong']], 422);

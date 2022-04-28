@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 27, 2022 at 07:59 AM
+-- Generation Time: Apr 28, 2022 at 07:49 AM
 -- Server version: 10.4.22-MariaDB
 -- PHP Version: 7.4.27
 
@@ -30,7 +30,7 @@ SET time_zone = "+00:00";
 CREATE TABLE `imagequeue` (
   `imageid` char(36) NOT NULL,
   `userid` int(11) NOT NULL,
-  `contenttype` varchar(256) DEFAULT NULL,
+  `content_type` varchar(256) DEFAULT NULL,
   `submitted` datetime DEFAULT NULL,
   `processed` datetime DEFAULT NULL,
   `ttl` datetime DEFAULT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE `imagequeue` (
 -- Dumping data for table `imagequeue`
 --
 
-INSERT INTO `imagequeue` (`imageid`, `userid`, `contenttype`, `submitted`, `processed`, `ttl`, `status`, `callback_success`, `callback_failure`) VALUES
+INSERT INTO `imagequeue` (`imageid`, `userid`, `content_type`, `submitted`, `processed`, `ttl`, `status`, `callback_success`, `callback_failure`) VALUES
 ('fc47ae86-665a-40de-92e1-b4bf58915978', 3, 'image/png', '2022-04-20 06:54:40', NULL, '2022-04-21 06:54:40', 'processing', 'http://aditya.com/image?success', 'http://aditya.com/image?failure'),
 ('4162bcc4-da0b-4fe3-ac76-db996957db4a', 3, 'image/jpg', '2022-04-20 06:56:57', NULL, '2022-04-25 23:02:37', 'Failed to retrieve image from backend server', 'http://aditya.com/image?success', 'http://aditya.com/image?failure'),
 ('4e661c69-d89c-43d4-8e45-2e56d15ce8ac', 3, NULL, NULL, NULL, '2022-04-23 00:02:55', 'waiting for upload', NULL, NULL),
@@ -62,7 +62,13 @@ INSERT INTO `imagequeue` (`imageid`, `userid`, `contenttype`, `submitted`, `proc
 ('5fc79b9a-b4fd-4aee-b3ff-d91e2207608a', 3, 'image/png', '2022-04-24 23:28:58', NULL, '2022-04-25 23:28:58', 'ssh: Could not resolve hostname stage1-1.intranet.graphiclead.com: No such host is known. \r\nlost connection\n', NULL, NULL),
 ('d2dbd530-25fd-413e-b883-64e68b8a83f1', 3, 'image/png', '2022-04-25 03:22:47', NULL, '2022-04-26 03:22:47', 'ssh: Could not resolve hostname stage1-1.intranet.graphiclead.com: No such host is known. \r\nlost connection\n', NULL, NULL),
 ('bec822fb-c1b2-4893-8d86-7bf2ca32ab9e', 3, 'image/jpg', '2022-04-25 03:23:41', NULL, '2022-04-26 03:23:41', 'ssh: Could not resolve hostname stage1-1.intranet.graphiclead.com: No such host is known. \r\nlost connection\n', NULL, NULL),
-('5ff3a564-23b0-47cf-8fc2-08e6b0483995', 3, NULL, NULL, NULL, '2022-04-27 04:06:34', 'waiting for upload', NULL, NULL);
+('5ff3a564-23b0-47cf-8fc2-08e6b0483995', 3, NULL, NULL, NULL, '2022-04-27 04:06:34', 'waiting for upload', NULL, NULL),
+('a56d5b59-923b-4b13-86d3-a6565f181019', 3, 'image/jpg', '2022-04-27 06:48:22', NULL, '2022-04-28 06:48:22', 'Failed to send image to backend: ssh: Could not resolve hostname stage1-1.intranet.graphiclead.com: No such host is known. \r\nlost connection\n', NULL, NULL),
+('75d82be1-cb61-41ae-9bb9-5633929accd8', 3, 'image/jpg', '2022-04-27 06:54:05', NULL, '2022-04-28 06:54:05', 'Failed to send image to backend: ssh: Could not resolve hostname stage1-1.intranet.graphiclead.com: No such host is known. \r\nlost connection\n', NULL, NULL),
+('8f053364-e6da-4ea8-b569-f2d89ac39709', 3, 'image/jpeg', '2022-04-27 06:59:48', NULL, '2022-04-28 06:59:48', 'Failed to send image to backend: ssh: Could not resolve hostname stage1-1.intranet.graphiclead.com: No such host is known. \r\nlost connection\n', NULL, NULL),
+('55cd917d-10c2-456a-8dc5-96cd3e1311c1', 3, NULL, NULL, NULL, '2022-04-28 07:02:38', 'waiting for upload', NULL, NULL),
+('541186b4-bebb-44e2-a5da-014de3e8359c', 3, 'image/jpeg', '2022-04-27 07:27:51', NULL, '2022-04-28 07:27:51', 'Failed to send image to backend: ssh: Could not resolve hostname stage1-1.intranet.graphiclead.com: No such host is known. \r\nlost connection\n', NULL, NULL),
+('a62c266d-e02f-4859-8495-8c0c2ab4dc6e', 3, 'image/png', '2022-04-28 01:41:29', NULL, '2022-04-29 01:41:29', 'processing', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -120,16 +126,16 @@ CREATE TABLE `users` (
   `codecount` int(11) NOT NULL,
   `created` timestamp NULL DEFAULT NULL,
   `modified` timestamp NULL DEFAULT NULL,
-  `groups` tinyint(1) DEFAULT 0
+  `groupid` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`userid`, `password`, `email`, `username`, `firstname`, `lastname`, `company`, `active`, `lastlogin`, `codecount`, `created`, `modified`, `groups`) VALUES
+INSERT INTO `users` (`userid`, `password`, `email`, `username`, `firstname`, `lastname`, `company`, `active`, `lastlogin`, `codecount`, `created`, `modified`, `groupid`) VALUES
 (1, '$2y$10$r8GAf.hpKYEkT6qF75/5z.itraRnBU98PEP.Tr34QPUxxXLgzYug2', 'test@test.com', NULL, 'test', 'test-last', 'graphic-lead', 1, '2022-03-28 11:09:22', 1, '2022-03-28 02:19:58', '2022-03-28 05:39:22', 1),
-(3, '$2y$10$DPTP7c/l.KwWLRif04w1Mu3bUL47DUbSKdfZH4ev/5af8T5NIDTZm', 'peter@test.com', 'peter50', 'peter', 'peter-last', 'graphic-lead', 1, '2022-04-27 01:38:41', 1, '2022-03-28 17:01:11', '2022-04-26 20:08:41', 1),
+(3, '$2y$10$DPTP7c/l.KwWLRif04w1Mu3bUL47DUbSKdfZH4ev/5af8T5NIDTZm', 'peter@test.com', 'peter50', 'peter', 'peter-last', 'graphic-lead', 1, '2022-04-28 01:41:10', 1, '2022-03-28 17:01:11', '2022-04-27 20:11:10', 1),
 (4, '$2y$10$D43QfkTCAoL6FGIzw83BmuhnHJoTUrRHxmmWvfTIPRpelPygzLktW', 'te@test.com', 'peter90', 'peter', 'peter-last', 'graphic-lead', 1, '2022-04-21 07:55:17', 1, '2022-04-21 02:25:18', '2022-04-21 02:25:18', 0),
 (5, '$2y$10$yk.j2v0xYJOuuypTFRnDyud2nzSWnoAyub7.vBsdyyD3BkJc0GE.m', 'kendra@test.com', 'kendra', 'peter', 'peter-last', 'graphic-lead', 1, '2022-04-27 01:45:31', 1, '2022-04-26 20:15:31', '2022-04-26 20:15:31', 0),
 (6, '$2y$10$HYlV9K3swFyX4srr93IxleIeZv9O3PPNSbEKCeIum/JVwRdXw0kGi', 'lamar@test.com', 'lamar', 'peter', 'peter-last', 'graphic-lead', 1, '2022-04-27 01:46:32', 1, '2022-04-26 20:16:32', '2022-04-26 20:16:32', 0);

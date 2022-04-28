@@ -14,7 +14,7 @@ class ImageQr extends Model
     protected $fillable = [
         'imageid',
         'userid',
-        'contenttype',
+        'content_type',
         'submitted',
         'processed',
         'ttl',
@@ -23,10 +23,6 @@ class ImageQr extends Model
 
     protected $hidden = [
         'userid',
-    ];
-
-    protected $casts = [
-        'contenttype ' => 'content_type'
     ];
 
     public function user()

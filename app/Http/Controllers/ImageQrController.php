@@ -185,7 +185,8 @@ class ImageQrController extends Controller
 
                     $img = $image->imageid . '.' . $ext;
                     // Function to write image into file
-                    file_put_contents(\storage_path('images/') . $img, file_get_contents($url));
+                    $result = file_put_contents(\storage_path('images/') . $img, file_get_contents($url));
+                    if (!$result) return \response()->json(['detail' => ['msg' => 'unable to store image']], 500);
                     $image->contenttype = $imageType;
                     $image->submitted = \now();
                     $image->ttl = \now()->addHours(24);
@@ -197,7 +198,8 @@ class ImageQrController extends Controller
                     // $this->executeCmd("scp -o StrictHostKeyChecking=no /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.jpg /var/www/html/path-to-image/c7aaf404-e740-4ded-996c-30766bda4012.json submit@stage1-1.intranet.graphiclead.com:process/");
 
                     // STORE INPUTS IN JSON
-                    Storage::put($image->imageid . '.json', \json_encode($attributes));
+                    $result = Storage::put($image->imageid . '.json', \json_encode($attributes));
+                    if (!$result) return \response()->json(['detail' => ['msg' => 'unable to store image json']], 500);
 
                     //EXTERNAL COMMANDS
                     $imageFilePath = \storage_path('images/') . $image->imageid . "." . $ext;
@@ -231,7 +233,9 @@ class ImageQrController extends Controller
                 $image->callback_success = isset($outputs) && \array_key_exists('callback_success', $outputs) ? $outputs['callback_success'] : \null;
                 $image->callback_failure = isset($outputs) && \array_key_exists('callback_failure', $outputs) ? $outputs['callback_failure'] : \null;
                 $image->save();
-                Storage::put($image->imageid . '.json', \json_encode($attributes));
+                $result = Storage::put($image->imageid . '.json', \json_encode($attributes));
+                if (!$result) return \response()->json(['detail' => ['msg' => 'unable to store image json']], 500);
+
                 return \response()->json([
                     'id' => $image->imageid,
                     'upload_url' =>  url('/imageqr') . '/' . $image->imageid
@@ -291,16 +295,14 @@ class ImageQrController extends Controller
         // $uniqueID =  json_decode(file_get_contents('php://input'),  true);
 
         // uniqueID required and this must be a PUT request
-        if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+        if ($request->method() === 'PUT') {
             // Cakephp $this->request->contentType() ??
             $mimeType = $request->header('content-type');
             $fileExten = "";
             if ($mimeType == "image/jpeg") {
-                $fileExten = "jpeg";
+                $fileExten = "jpg";
             } elseif ($mimeType == "image/png") {
                 $fileExten = "png";
-            } elseif ($mimeType == 'image/jpg') {
-                $fileExten = "jpg";
             } else {
                 // throw new Exception("Error Processing Request", 1);
                 return \response()->json(['detail' => ['msg' => 'Error Processing Request']], 400);

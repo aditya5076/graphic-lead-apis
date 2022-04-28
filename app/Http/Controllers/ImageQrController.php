@@ -312,7 +312,8 @@ class ImageQrController extends Controller
                 $objInputStream = fopen("php://input", "rb");
                 $objSaveStream = fopen(\storage_path('images/') . $uuid . "." . $fileExten, "wb");
                 // dd($objSaveStream);
-                stream_copy_to_stream($objInputStream, $objSaveStream);
+                $result = stream_copy_to_stream($objInputStream, $objSaveStream);
+                if (!$result) return \response()->json(['detail' => ['msg' => 'unable to store image']], 500);
 
                 $image->contenttype = $mimeType;
                 $image->submitted = \now();

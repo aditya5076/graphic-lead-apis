@@ -15,4 +15,7 @@ use Illuminate\Support\Facades\Route;
 
 // Route::get('/', function () {
 //     return view('welcome');
-// });
+// });Y
+
+Route::get('check', 'TestController@getChecked');
+Route::get('check-local', 'TestController@checkLocal');

@@ -1,0 +1,10 @@
+{
+    "quiet_zone": 0,
+    "version": 5,
+    "rotate": 90,
+    "eye_shape": "rounded",
+    "data": "sdhhswdgwgwhjkds,sna",
+    "ecl": "L",
+    "callback_success": "http://localhost:8000/backend-notify/f17db03e-8e22-4d87-8215-54420ff35155?status=success",
+    "callback_failure": "http://localhost:8000/backend-notify/f17db03e-8e22-4d87-8215-54420ff35155?status=failure"
+}
